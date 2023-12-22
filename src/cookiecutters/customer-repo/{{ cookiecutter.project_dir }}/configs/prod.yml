@@ -1,0 +1,8 @@
+general:
+  prefix: {{ cookiecutter.resource_prefix }}
+  region: {{ cookiecutter.region }}
+  unique_id: {{ cookiecutter.unique_id }}
+  tags:
+    Application: Ingenii Azure Data Platform
+    Environment: Prod
+    CustomerCode: {{ cookiecutter.customer_code.upper() }}

@@ -1,0 +1,18 @@
+databricks-cli==0.16.4
+pulumi==3.38.0
+pulumi-azure==4.38.0
+pulumi-azuread==5.17.0
+pulumi-azuredevops==2.1.1
+pulumi-azure-native==1.58.0
+pulumi-databricks==0.4.0
+pulumi-kubernetes==3.20.0
+pulumi-random==4.3.1
+azure-data-tables==12.2.0
+azure-mgmt-authorization==2.0.0
+HiYaPyCo==0.4.16
+yamale==3.0.8
+wheel>=0.36.2
+cruft==2.10.1
+markupsafe==2.0.1 # Temporary until https://github.com/pallets/markupsafe/issues/286 is resolved.
+pip
+ingeniictl==0.2.2

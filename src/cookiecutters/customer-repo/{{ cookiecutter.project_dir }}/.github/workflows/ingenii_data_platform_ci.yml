@@ -1,0 +1,264 @@
+name: Ingenii Data Platform CI
+
+#----------------------------------------------------------------------------------------------------------------------
+# Workflow Triggers
+#
+# - Manual Run
+# - Pull Request (specific events)
+# - Push to Main
+#----------------------------------------------------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+  pull_request:
+    types: ["reopened"]
+  push:
+    paths-ignore:
+      - "README.md"
+      - ".gitignore"
+
+#----------------------------------------------------------------------------------------------------------------------
+# Concurrency Policy
+# We are making sure only one instance of this workflow can be running at a time.
+# Concurrent Pulumi preview/up runs will error out.
+#----------------------------------------------------------------------------------------------------------------------
+concurrency: "data-platform"
+
+#----------------------------------------------------------------------------------------------------------------------
+# Global Environment Variables
+# These variables are accessible from all jobs and their steps.
+#----------------------------------------------------------------------------------------------------------------------
+env:
+  AZURE_STORAGE_ACCOUNT: {% raw %}${{ secrets.STATE_ACCOUNT_NAME }}{%- endraw %}
+  AZURE_STORAGE_KEY : {% raw %}${{ secrets.STATE_ACCOUNT_KEY }}{%- endraw %}
+  AZURE_TENANT_ID : {% raw %}${{ secrets.STATE_KEY_TENANT_ID }}{%- endraw %}
+  AZURE_CLIENT_ID : {% raw %}${{ secrets.STATE_KEY_CLIENT_ID }}{%- endraw %}
+  AZURE_CLIENT_SECRET : {% raw %}${{ secrets.STATE_KEY_CLIENT_SECRET }}{%- endraw %}
+  AZDO_PERSONAL_ACCESS_TOKEN: {% raw %}${{ secrets.AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN }}{%- endraw %}
+  AZDO_ORG_SERVICE_URL: {% raw %}${{ secrets.AZURE_DEVOPS_ORG_SERVICE_URL }}{%- endraw %}
+  PULUMI_SKIP_UPDATE_CHECK: true
+  PULUMI_SKIP_CONFIRMATIONS: true
+  AZURE_TABLE_NAME: "CustomerUrls"
+  AZURE_TABLE_CONNECTION_STRING: {% raw %}${{ secrets.UI_CUSTOMER_URLS_AZURE_TABLE_STORAGE_CONNECTION_STRING }}{%- endraw %}
+  WORKSPACE_DNS_ARM_CLIENT_ID: {% raw %}${{ secrets.WORKSPACE_DNS_ARM_CLIENT_ID }}{%- endraw %}
+  WORKSPACE_DNS_ARM_CLIENT_SECRET: {% raw %}${{ secrets.WORKSPACE_DNS_ARM_CLIENT_SECRET }}{%- endraw %}
+  WORKSPACE_DNS_ARM_SUBSCRIPTION_ID: {% raw %}${{ secrets.WORKSPACE_DNS_ARM_SUBSCRIPTION_ID }}{%- endraw %}
+  WORKSPACE_DNS_ARM_TENANT_ID: {% raw %}${{ secrets.WORKSPACE_DNS_ARM_TENANT_ID }}{%- endraw %}
+  WORKSPACE_DNS_RESOURCE_GROUP_NAME: {% raw %}${{ secrets.WORKSPACE_DNS_RESOURCE_GROUP_NAME }}{%- endraw %}
+  PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+
+#----------------------------------------------------------------------------------------------------------------------
+# Jobs
+#----------------------------------------------------------------------------------------------------------------------
+jobs:
+  find_version:
+    name: Find platform version
+    runs-on: ubuntu-latest
+    outputs:
+      version: {% raw %}${{ steps.find-version.outputs.version }}{%- endraw %}
+    steps:
+      - name: Checkout Customer Repo
+        uses: actions/checkout@v2
+      - name: Find version
+        id: find-version
+        run: |
+          PLATFORM_VERSION=$(cat platform.cfg | grep PLATFORM_VERSION | awk -F '=' '{ print $2 }')
+          echo "Platform version: $PLATFORM_VERSION"
+          echo "::set-output name=version::$PLATFORM_VERSION"
+  shared:
+    name: Shared Stack
+    needs: find_version
+    runs-on: [self-hosted, linux, x64]
+    if: "!contains(github.event.head_commit.message, '#action:destroy-platform')"
+    container:
+      image: ingeniisolutions/azure-data-platform-iac-runtime:{% raw %}${{ needs.find_version.outputs.version }}{%- endraw %}
+      credentials:
+        username: {% raw %}${{ secrets.INGENII_DOCKER_HUB_USERNAME }}{%- endraw %}
+        password: {% raw %}${{ secrets.INGENII_DOCKER_HUB_PASSWORD }}{%- endraw %}
+    env:
+      ARM_CLIENT_ID: {% raw %}${{ secrets.SHARED_ARM_CLIENT_ID }}{%- endraw %}
+      ARM_CLIENT_SECRET: {% raw %}${{ secrets.SHARED_ARM_CLIENT_SECRET }}{%- endraw %}
+      ARM_SUBSCRIPTION_ID: {% raw %}${{ secrets.SHARED_ARM_SUBSCRIPTION_ID }}{%- endraw %}
+      ARM_TENANT_ID: {% raw %}${{ secrets.SHARED_ARM_TENANT_ID }}{%- endraw %}
+    steps:
+      #---------------------------------
+      - name: Checkout Customer Repo
+        uses: actions/checkout@v2
+      #---------------------------------
+      - name: Prepare Platform Source Files
+        run: |
+          make cicd-init-shared
+      #---------------------------------
+      - name: Run Pulumi Preview
+        run: make cicd-preview-shared
+      #---------------------------------
+      - name: Run Pulumi Up
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: make cicd-apply-shared
+  dtap:
+    name: DTAP Stacks
+    needs: [find_version, shared]
+    runs-on: [self-hosted, linux, x64]
+    if: "!contains(github.event.head_commit.message, '#action:destroy-platform')"
+    container:
+      image: ingeniisolutions/azure-data-platform-iac-runtime:{% raw %}${{ needs.find_version.outputs.version }}{%- endraw %}
+      credentials:
+        username: {% raw %}${{ secrets.INGENII_DOCKER_HUB_USERNAME }}{%- endraw %}
+        password: {% raw %}${{ secrets.INGENII_DOCKER_HUB_PASSWORD }}{%- endraw %}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack: dev
+            client_id: DEV_ARM_CLIENT_ID
+            client_secret: DEV_ARM_CLIENT_SECRET
+            subscription_id: DEV_ARM_SUBSCRIPTION_ID
+            tenant_id: DEV_ARM_TENANT_ID
+          - stack: test
+            client_id: TEST_ARM_CLIENT_ID
+            client_secret: TEST_ARM_CLIENT_SECRET
+            subscription_id: TEST_ARM_SUBSCRIPTION_ID
+            tenant_id: TEST_ARM_TENANT_ID
+          - stack: prod
+            client_id: PROD_ARM_CLIENT_ID
+            client_secret: PROD_ARM_CLIENT_SECRET
+            subscription_id: PROD_ARM_SUBSCRIPTION_ID
+            tenant_id: PROD_ARM_TENANT_ID
+    env:
+      STACK: {% raw %}${{ matrix.stack }}{%- endraw %}
+      ARM_CLIENT_ID: {% raw %}${{ secrets[matrix.client_id] }}{%- endraw %}
+      ARM_CLIENT_SECRET: {% raw %}${{ secrets[matrix.client_secret] }}{%- endraw %}
+      ARM_SUBSCRIPTION_ID: {% raw %}${{ secrets[matrix.subscription_id] }}{%- endraw %}
+      ARM_TENANT_ID: {% raw %}${{ secrets[matrix.tenant_id] }}{%- endraw %}
+      SHARED_ARM_CLIENT_ID: {% raw %}${{ secrets.SHARED_ARM_CLIENT_ID }}{%- endraw %}
+      SHARED_ARM_CLIENT_SECRET: {% raw %}${{ secrets.SHARED_ARM_CLIENT_SECRET }}{%- endraw %}
+      SHARED_ARM_SUBSCRIPTION_ID: {% raw %}${{ secrets.SHARED_ARM_SUBSCRIPTION_ID }}{%- endraw %}
+      SHARED_ARM_TENANT_ID: {% raw %}${{ secrets.SHARED_ARM_TENANT_ID }}{%- endraw %}
+    steps:
+      #---------------------------------
+      - name: Checkout Customer Repo
+        uses: actions/checkout@v2
+      #---------------------------------
+      - name: Prepare Platform Source Files
+        run: |
+          make cicd-init-dtap
+      #---------------------------------
+      - name: Run Pulumi Preview
+        run: make cicd-preview-dtap
+      #---------------------------------
+      - name: Run Pulumi Up
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: make cicd-apply-dtap
+  extensions:
+    name: Extension Stacks
+    needs: [find_version, dtap]
+    runs-on: [self-hosted, linux, x64]
+    if: "!contains(github.event.head_commit.message, '#action:destroy-platform')"
+    container:
+      image: ingeniisolutions/azure-data-platform-iac-runtime:{% raw %}${{ needs.find_version.outputs.version }}{%- endraw %}
+      credentials:
+        username: {% raw %}${{ secrets.INGENII_DOCKER_HUB_USERNAME }}{%- endraw %}
+        password: {% raw %}${{ secrets.INGENII_DOCKER_HUB_PASSWORD }}{%- endraw %}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stack: dev
+            client_id: DEV_ARM_CLIENT_ID
+            client_secret: DEV_ARM_CLIENT_SECRET
+            subscription_id: DEV_ARM_SUBSCRIPTION_ID
+            tenant_id: DEV_ARM_TENANT_ID
+          - stack: test
+            client_id: TEST_ARM_CLIENT_ID
+            client_secret: TEST_ARM_CLIENT_SECRET
+            subscription_id: TEST_ARM_SUBSCRIPTION_ID
+            tenant_id: TEST_ARM_TENANT_ID
+          - stack: prod
+            client_id: PROD_ARM_CLIENT_ID
+            client_secret: PROD_ARM_CLIENT_SECRET
+            subscription_id: PROD_ARM_SUBSCRIPTION_ID
+            tenant_id: PROD_ARM_TENANT_ID
+          - stack: shared
+            client_id: SHARED_ARM_CLIENT_ID
+            client_secret: SHARED_ARM_CLIENT_SECRET
+            subscription_id: SHARED_ARM_SUBSCRIPTION_ID
+            tenant_id: SHARED_ARM_TENANT_ID
+    env:
+      STACK: {% raw %}${{ matrix.stack }}{%- endraw %}
+      ARM_CLIENT_ID: {% raw %}${{ secrets[matrix.client_id] }}{%- endraw %}
+      ARM_CLIENT_SECRET: {% raw %}${{ secrets[matrix.client_secret] }}{%- endraw %}
+      ARM_SUBSCRIPTION_ID: {% raw %}${{ secrets[matrix.subscription_id] }}{%- endraw %}
+      ARM_TENANT_ID: {% raw %}${{ secrets[matrix.tenant_id] }}{%- endraw %}
+      SHARED_ARM_CLIENT_ID: {% raw %}${{ secrets.SHARED_ARM_CLIENT_ID }}{%- endraw %}
+      SHARED_ARM_CLIENT_SECRET: {% raw %}${{ secrets.SHARED_ARM_CLIENT_SECRET }}{%- endraw %}
+      SHARED_ARM_SUBSCRIPTION_ID: {% raw %}${{ secrets.SHARED_ARM_SUBSCRIPTION_ID }}{%- endraw %}
+      SHARED_ARM_TENANT_ID: {% raw %}${{ secrets.SHARED_ARM_TENANT_ID }}{%- endraw %}
+      PULUMI_CONFIG_PASSPHRASE: ""
+    steps:
+      #---------------------------------
+      - name: Checkout Customer Repo
+        uses: actions/checkout@v2
+      #---------------------------------
+      - name: Run Pulumi Init
+        if: matrix.stack == 'shared'
+        run: make cicd-init-shared-ext
+      #---------------------------------
+      - name: Run Pulumi Preview
+        if: matrix.stack == 'shared'
+        run: make cicd-preview-shared-ext
+      #---------------------------------
+      - name: Run Pulumi Up
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && matrix.stack == 'shared'
+        run: make cicd-apply-shared-ext
+      #---------------------------------
+      - name: Run Pulumi Init
+        if: matrix.stack != 'shared'
+        run: make cicd-init-dtap-ext
+      #---------------------------------
+      - name: Run Pulumi Preview
+        if: matrix.stack != 'shared'
+        run: make cicd-preview-dtap-ext
+      #---------------------------------
+      - name: Run Pulumi Up
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && matrix.stack != 'shared'
+        run: make cicd-apply-dtap-ext
+  destroy-platform:
+    name: Destroy Platform
+    needs: find_version
+    runs-on: [self-hosted, linux, x64]
+    if: "contains(github.event.head_commit.message, '#action:destroy-platform')"
+    container:
+      image: ingeniisolutions/azure-data-platform-iac-runtime:{% raw %}${{ needs.find_version.outputs.version }}{%- endraw %}
+      credentials:
+        username: {% raw %}${{ secrets.INGENII_DOCKER_HUB_USERNAME }}{%- endraw %}
+        password: {% raw %}${{ secrets.INGENII_DOCKER_HUB_PASSWORD }}{%- endraw %}
+    env:
+      ARM_CLIENT_ID: {% raw %}${{ secrets.ARM_CLIENT_ID }}{%- endraw %}
+      ARM_CLIENT_SECRET: {% raw %}${{ secrets.ARM_CLIENT_SECRET }}{%- endraw %}
+      ARM_SUBSCRIPTION_ID: {% raw %}${{ secrets.ARM_SUBSCRIPTION_ID }}{%- endraw %}
+      ARM_TENANT_ID: {% raw %}${{ secrets.ARM_TENANT_ID }}{%- endraw %}
+      SHARED_ARM_CLIENT_ID: {% raw %}${{ secrets.SHARED_ARM_CLIENT_ID }}{%- endraw %}
+      SHARED_ARM_CLIENT_SECRET: {% raw %}${{ secrets.SHARED_ARM_CLIENT_SECRET }}{%- endraw %}
+      SHARED_ARM_SUBSCRIPTION_ID: {% raw %}${{ secrets.SHARED_ARM_SUBSCRIPTION_ID }}{%- endraw %}
+      SHARED_ARM_TENANT_ID: {% raw %}${{ secrets.SHARED_ARM_TENANT_ID }}{%- endraw %}
+      DESTROY: 1
+    steps:
+      #---------------------------------
+      - name: Checkout Customer Repo
+        uses: actions/checkout@v2
+      #---------------------------------
+      - name: Show Banner
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo
+          echo "====================================================================="
+          echo "PLEASE READ THIS CAREFULLY"
+          echo "====================================================================="
+          echo "make cicd-destroy will be executed as soon as this PR is merged"
+          echo "All platform resources will be deleted."
+          echo "The process is irreversible and will result in the loss of all data."
+          echo "====================================================================="
+          echo
+      #---------------------------------
+      - name: Run Ingeniictl Destroy
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: make cicd-destroy

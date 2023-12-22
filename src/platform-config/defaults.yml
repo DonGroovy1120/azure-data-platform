@@ -1,0 +1,361 @@
+# ----------------------------------------------------------------------------------------------------------------------
+# GENERAL
+# ----------------------------------------------------------------------------------------------------------------------
+general:
+  prefix: ii
+  region: EastUS
+  unique_id: i1r1
+  use_legacy_naming: false
+  tags:
+    IngeniiApplication: Azure Data Platform
+    IngeniiNotice: "This resource is managed using infrastructure as code approach. Please do not make any manual changes as they will be overwritten on the next infrastructure update."
+
+# ----------------------------------------------------------------------------------------------------------------------
+# MANAGEMENT
+# ----------------------------------------------------------------------------------------------------------------------
+management:
+  user_groups:
+    admins:
+      display_name: admins
+    engineers:
+      display_name: engineers
+    analysts:
+      display_name: analysts
+  resource_groups:
+    infra:
+      display_name: infra
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            role_definition_name: Owner
+          - user_group_ref_key: engineers
+            role_definition_name: Reader
+          - user_group_ref_key: analysts
+            role_definition_name: Reader
+    data:
+      display_name: data
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            role_definition_name: Owner
+          - user_group_ref_key: engineers
+            role_definition_name: Reader
+          - user_group_ref_key: analysts
+            role_definition_name: Reader
+    security:
+      display_name: security
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            role_definition_name: Owner
+          - user_group_ref_key: engineers
+            role_definition_name: Reader
+          - user_group_ref_key: analysts
+            role_definition_name: Reader
+  action_groups:
+    data_pipeline_failures:
+      display_name: Data Pipeline Failures
+      short_name: PipelineFail
+      enabled: true
+      email_addresses: []
+
+# ----------------------------------------------------------------------------------------------------------------------
+# SECURITY
+# ----------------------------------------------------------------------------------------------------------------------
+security:
+  credentials_store:
+    network:
+      firewall:
+        enabled: false
+    iam:
+      role_assignments:
+        - user_group_ref_key: admins
+          role_definition_name: "Key Vault Administrator"
+        - user_group_ref_key: engineers
+          role_definition_name: "Key Vault Secrets Officer"
+
+# ----------------------------------------------------------------------------------------------------------------------
+# LOGS
+# ----------------------------------------------------------------------------------------------------------------------
+logs:
+  retention: 30 # Log retention in days
+  resource_types:
+    # Default is true, so any type can be added to the client configuration if it needs disabling
+    Microsoft.Databricks/workspaces: true
+    Microsoft.DataFactory/factories: true
+    Microsoft.KeyVault/vaults: true
+    Microsoft.Network/networkInterfaces: true
+    Microsoft.Network/networkSecurityGroups: true
+    Microsoft.Network/publicIPAddresses: true
+    Microsoft.Storage/storageAccounts: true
+
+# ----------------------------------------------------------------------------------------------------------------------
+# NETWORK
+# ----------------------------------------------------------------------------------------------------------------------
+network:
+  firewall:
+    enabled: false
+    ip_access_list:
+      - 151.251.5.72 # Ingenii TK
+      - 52.142.62.11 # Ingenii GitHub Runner
+  nat_gateway:
+    enabled: true
+  virtual_network:
+    display_name: main
+    address_space: 10.110.0.0/16
+
+# ----------------------------------------------------------------------------------------------------------------------
+# STORAGE
+# ----------------------------------------------------------------------------------------------------------------------
+storage:
+  accounts:
+    databricks:
+      display_name: databricks
+      network:
+        firewall:
+          enabled: false
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            role_definition_name: "Storage Blob Data Contributor"
+          - user_group_ref_key: engineers
+            role_definition_name: "Storage Blob Data Contributor"
+      containers:
+        cluster_logs_analytics: # Mount in DBW Engineering(RW)
+          display_name: cluster-logs-analytics
+        cluster_logs_engineering: # Mount in DBW Engineering(RW)
+          display_name: cluster-logs-engineering
+      lifecycle_management:
+        archive_after: 10
+        cool_after: 1
+        delete_after: 30
+    datalake:
+      display_name: datalake
+      network:
+        firewall:
+          enabled: false
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            role_definition_name: "Storage Blob Data Contributor"
+      containers:
+        preprocess: # Mount in DBW Engineering(RW)
+          display_name: preprocess
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+        utilities: # Mount in DBW Engineering(RW), Analytics(RW)
+          display_name: utilities
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+              - user_group_ref_key: analysts
+                role_definition_name: "Storage Blob Data Contributor"
+        raw: # Mount in DBW Engineering(RW)
+          display_name: raw
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+        archive: # Mount in DBW Engineering(RW)
+          display_name: archive
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+        source: # Mount in DBW Engineering(RW), Analytics
+          display_name: source
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+              - user_group_ref_key: analysts
+                role_definition_name: "Storage Blob Data Reader"
+        models: # Mount in DBW Engineering(RW), Analytics
+          display_name: models
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+              - user_group_ref_key: analysts
+                role_definition_name: "Storage Blob Data Reader"
+        snapshots: # Mount in DBW Engineering(RW), Analytics
+          display_name: snapshots
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+              - user_group_ref_key: analysts
+                role_definition_name: "Storage Blob Data Reader"
+        orchestration: # Mount in DBW Engineering(RW), Analytics
+          display_name: orchestration
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+              - user_group_ref_key: analysts
+                role_definition_name: "Storage Blob Data Reader"
+        dbt: # Mount in DBW Engineering(RW)
+          display_name: dbt
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Contributor"
+        dbt_logs: # Mount in DBW Engineering(RW)
+          display_name: dbt-logs
+          iam:
+            role_assignments:
+              - user_group_ref_key: engineers
+                role_definition_name: "Storage Blob Data Reader"
+      tables:
+        sftp_known_files:
+          display_name: "SFTPKnownFiles"
+        select1:
+          display_name: "Select1"
+          entities:
+            empty:
+              row_key: "1"
+              partition_key: "1"
+
+# ----------------------------------------------------------------------------------------------------------------------
+# ANALYTICS SERVICES
+# ----------------------------------------------------------------------------------------------------------------------
+analytics_services:
+  databricks:
+    workspaces:
+      engineering:
+        config:
+          enable_container_services: "true"
+        iam:
+          role_assignments:
+            - user_group_ref_key: admins
+              role_definition_name: Owner
+            - user_group_ref_key: engineers
+              role_definition_name: Owner
+        clusters:
+          system:
+            type: single_node
+            display_name: system
+            spark_version: "10.4.x-scala2.12"
+            node_type_id: "Standard_F4s"
+            is_pinned: true
+            autotermination_minutes: 10
+          default:
+            type: single_node
+            display_name: engineering
+            spark_version: "10.4.x-scala2.12"
+            node_type_id: "Standard_F4s"
+            is_pinned: true
+            autotermination_minutes: 15
+            docker_image_url: "ingeniisolutions/databricks-runtime:0.6.2"
+        storage_mounts:
+          - type: mount
+            account_ref_key: datalake
+            container_name: utilities
+            mount_name: utilities
+          - type: mount
+            account_ref_key: datalake
+            container_name: preprocess
+            mount_name: preprocess
+          - type: mount
+            account_ref_key: datalake
+            container_name: dbt
+            mount_name: dbt
+          - type: mount
+            account_ref_key: datalake
+            container_name: dbt-logs
+            mount_name: dbt-logs
+          - type: mount
+            account_ref_key: datalake
+            container_name: raw
+            mount_name: raw
+          - type: mount
+            account_ref_key: datalake
+            container_name: archive
+            mount_name: archive
+          - type: mount
+            account_ref_key: datalake
+            container_name: source
+            mount_name: source
+          - type: mount
+            account_ref_key: datalake
+            container_name: models
+            mount_name: models
+          - type: mount
+            account_ref_key: datalake
+            container_name: snapshots
+            mount_name: snapshots
+          - type: mount
+            account_ref_key: datalake
+            container_name: orchestration
+            mount_name: orchestration
+          - type: mount
+            account_ref_key: databricks
+            container_name: cluster-logs-engineering
+            mount_name: cluster_logs
+      analytics:
+        config:
+          enable_container_services: "false"
+        iam:
+          role_assignments:
+            - user_group_ref_key: admins
+              role_definition_name: Owner
+            - user_group_ref_key: engineers
+              role_definition_name: Owner
+        clusters:
+          default:
+            type: high_concurrency
+            display_name: analytics
+            spark_version: "10.4.x-scala2.12"
+            node_type_id: "Standard_F4s"
+            is_pinned: true
+            auto_scale_min_workers: 1
+            auto_scale_max_workers: 4
+            autotermination_minutes: 15
+        storage_mounts:
+          - type: mount
+            account_ref_key: datalake
+            container_name: utilities
+            mount_name: utilities
+          - type: passthrough
+            account_ref_key: datalake
+            container_name: source
+            mount_name: source
+          - type: passthrough
+            account_ref_key: datalake
+            container_name: models
+            mount_name: models
+          - type: passthrough
+            account_ref_key: datalake
+            container_name: snapshots
+            mount_name: snapshots
+          - type: passthrough
+            account_ref_key: datalake
+            container_name: orchestration
+            mount_name: orchestration
+          - type: mount
+            account_ref_key: databricks
+            container_name: cluster-logs-analytics
+            mount_name: cluster_logs
+  datafactory:
+    user_factories:
+      data:
+        display_name: data
+    orchestration_factories_contributors:
+      - user_group_ref_key: engineers
+    user_factories_contributors:
+      - user_group_ref_key: engineers
+  dbt:
+    documentation:
+      enabled: false
+  jupyterlab:
+    single_user_image_version: "0.1.0"
+  quantum:
+    enabled: false
+    providers:
+    - id: Microsoft
+      sku: DZH3178M639F
+    - id: ionq
+      sku: pay-as-you-go-cred

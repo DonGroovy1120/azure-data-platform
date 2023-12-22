@@ -1,0 +1,6 @@
+name: ingenii-iadp-core-shared
+runtime:
+  name: python
+description: Ingenii Azure Data Platform - Core Shared Services Module.
+backend:
+  url: azblob://client

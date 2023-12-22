@@ -1,0 +1,11 @@
+# ----------------------------------------------------------------------------------------------------------------------
+# GENERAL
+# ----------------------------------------------------------------------------------------------------------------------
+general:
+  prefix: ii
+  region: EastUS
+  unique_id: i1r1
+  use_legacy_naming: false
+  tags:
+    IngeniiApplication: Azure Data Platform
+    IngeniiNotice: "This resource is managed using infrastructure as code approach. Please do not make any manual changes as they will be overwritten on the next infrastructure update."

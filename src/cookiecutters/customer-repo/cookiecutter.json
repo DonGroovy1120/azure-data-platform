@@ -1,0 +1,9 @@
+{
+  "customer_code": "A short string that represents a customer code. (e.g. contoso -> cont)",
+  "platform_version": "The release version of the Azure Data Platform. (e.g. 0.1.4)",
+  "resource_prefix": "Up to 4 characters string prefix that will be used for all resource names. (e.g. cont)",
+  "region": "The Azure region where the resources will be deployed. (e.g. EastUS)",
+  "unique_id": "Up to 3 characters string that will be used as a unique id for resource names that require global uniqueness.",
+  "project_dir": "adp-{{ cookiecutter.customer_code.lower() }}",
+  "_copy_without_render": ["Makefile","filter_resources.py"]
+}

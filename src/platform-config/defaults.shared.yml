@@ -1,0 +1,188 @@
+# ----------------------------------------------------------------------------------------------------------------------
+# GENERAL
+# ----------------------------------------------------------------------------------------------------------------------
+general:
+  prefix: ii
+  region: EastUS
+  unique_id: i1r1
+  use_legacy_naming: false
+  tags:
+    IngeniiApplication: Azure Data Platform
+    IngeniiNotice: "This resource is managed using infrastructure as code approach. Please do not make any manual changes as they will be overwritten on the next infrastructure update."
+
+# ----------------------------------------------------------------------------------------------------------------------
+# MANAGEMENT
+# ----------------------------------------------------------------------------------------------------------------------
+management:
+  user_groups:
+    admins:
+      display_name: admins
+    engineers:
+      display_name: engineers
+    analysts:
+      display_name: analysts
+  resource_groups:
+    infra:
+      display_name: infra
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            role_definition_name: Owner
+          - user_group_ref_key: engineers
+            role_definition_name: Reader
+          - user_group_ref_key: analysts
+            role_definition_name: Reader
+    data:
+      display_name: data
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            role_definition_name: Owner
+          - user_group_ref_key: engineers
+            role_definition_name: Reader
+          - user_group_ref_key: analysts
+            role_definition_name: Reader
+    security:
+      display_name: security
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            role_definition_name: Owner
+          - user_group_ref_key: engineers
+            role_definition_name: Reader
+          - user_group_ref_key: analysts
+            role_definition_name: Reader
+# ----------------------------------------------------------------------------------------------------------------------
+# SECURITY
+# ----------------------------------------------------------------------------------------------------------------------
+security:
+  config_registry:
+    network:
+      firewall:
+        enabled: false
+    iam:
+      role_assignments:
+        - user_group_ref_key: admins
+          role_definition_name: "Key Vault Administrator"
+
+# ----------------------------------------------------------------------------------------------------------------------
+# LOGS
+# ----------------------------------------------------------------------------------------------------------------------
+logs:
+  retention: 30 # Log retention in days
+  resource_types:
+    # Default is true, so any type can be added to the client configuration if it needs disabling
+    Microsoft.Databricks/workspaces: true
+    Microsoft.DataFactory/factories: true
+    Microsoft.KeyVault/vaults: true
+    Microsoft.Network/networkInterfaces: true
+    Microsoft.Network/networkSecurityGroups: true
+    Microsoft.Network/publicIPAddresses: true
+    Microsoft.Storage/storageAccounts: true
+
+# ----------------------------------------------------------------------------------------------------------------------
+# NETWORK
+# ----------------------------------------------------------------------------------------------------------------------
+network:
+  firewall:
+    enabled: false
+    ip_access_list:
+      - 151.251.5.72 # Ingenii TK
+      - 52.142.62.11 # Ingenii GitHub Runner
+  nat_gateway:
+    enabled: true
+  virtual_network:
+    display_name: main
+    address_space: 10.100.0.0/16
+
+#----------------------------------------------------------------------------------------------------------------------
+# SHARED KUBERNETES CLUSTER
+#----------------------------------------------------------------------------------------------------------------------
+shared_kubernetes_cluster: # Shared only
+  cluster:
+    iam: 
+      role_assignments:
+        - user_group_ref_key: admins
+          role_definition_name: Azure Kubernetes Service RBAC Cluster Admin
+        - user_group_ref_key: engineers
+          role_definition_name: Azure Kubernetes Service RBAC Reader
+        - user_group_ref_key: analysts
+          role_definition_name: Azure Kubernetes Service RBAC Reader
+  resource_group:
+    display_name: kubernetes
+    iam:
+      role_assignments:
+        - user_group_ref_key: admins
+          role_definition_name: Owner
+        - user_group_ref_key: engineers
+          role_definition_name: Reader
+        - user_group_ref_key: analysts
+          role_definition_name: Reader
+
+# ----------------------------------------------------------------------------------------------------------------------
+# ANALYTICS
+# ----------------------------------------------------------------------------------------------------------------------
+analytics_services:
+  databricks: 
+    workspaces:
+      analytics:
+        devops_repositories:
+        - name: Notebooks
+      engineering:
+        devops_repositories:
+        - name: Notebooks
+  datafactory:
+    integrated_self_hosted_runtime:
+      enabled: false
+      image: ingeniisolutions/adf-self-hosted-integration-runtime:1.0.2
+    shared_self_hosted_runtime_factory:
+      enabled: false
+      runtime_names:
+      - SelfHostedRuntime
+      iam:
+        role_assignments:
+          - user_group_ref_key: engineers
+            role_definition_name: Data Factory Contributor
+  jupyterlab:
+    enabled: false
+    version: "1.2.0"
+
+# ----------------------------------------------------------------------------------------------------------------------
+# AUTOMATION
+# ----------------------------------------------------------------------------------------------------------------------
+automation:
+  devops:
+    project:
+      name: Ingenii Data Platform
+      description: Repositories and pipelines related to the data platform.
+      features:
+        - pipelines
+        - repositories
+        - artifacts
+      version_control: "Git"
+      visibility: "private"
+      work_item_template: "Agile"
+      iam:
+        role_assignments:
+          - user_group_ref_key: admins
+            azure_devops_project_group_name: "Project Administrators"
+          - user_group_ref_key: engineers
+            azure_devops_project_group_name: "Contributors"
+          - user_group_ref_key: analysts
+            azure_devops_project_group_name: "Contributors"
+    repositories:
+      - name: "DataEngineering"
+        import_url: "https://github.com/ingenii-solutions/azure-data-platform-data-engineering-example"
+        pipelines:
+          - name: DataEngineering - dbt
+            use_yml: True
+            yml_path: "CICD/dbt.yml"
+          - name: DataEngineering - dbt - Production
+            use_yml: True
+            yml_path: "CICD/dbt_production.yml"
+          - name: DataEngineering - pre-processing
+            use_yml: True
+            yml_path: "CICD/pre-processing.yml"
+          - name: DataEngineering - pre-processing - Production
+            use_yml: True
+            yml_path: "CICD/pre-processing_production.yml"

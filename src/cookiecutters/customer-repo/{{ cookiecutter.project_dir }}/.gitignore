@@ -1,0 +1,7 @@
+.env
+*.rej # Cruft reject files
+*.secret
+runtime
+source
+src
+venv
