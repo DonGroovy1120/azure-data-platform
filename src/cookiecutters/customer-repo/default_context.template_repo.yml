@@ -1,0 +1,7 @@
+default_context:
+  customer_code: tpl
+  region: tpl
+  resource_prefix: tpl
+  unique_id: tpl
+  platform_version: platform_version_replace_me
+  project_dir: tpl

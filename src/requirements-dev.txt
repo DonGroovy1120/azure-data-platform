@@ -1,0 +1,16 @@
+-r requirements-common.txt
+-e ./python/ingenii_azure_data_platform
+-e ./python/extensions/ingenii_adp_sql_results_server
+pre-commit>=1.21.0
+flake8
+flake8-junit-report>=2.1.0
+pytest>=5.3.2
+twine>=3.4.2
+autopep8
+black
+yapf
+bandit
+mypy
+pycodestyle
+pydocstyle
+pylint

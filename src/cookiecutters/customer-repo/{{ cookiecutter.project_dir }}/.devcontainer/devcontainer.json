@@ -1,0 +1,31 @@
+{
+    "name": "Azure Data Platform IaC Runtime",
+    "image": "ingeniisolutions/azure-data-platform-iac-runtime:{{ cookiecutter.platform_version }}",
+  
+    // Set *default* container specific settings.json values on container create.
+    "settings": {},
+  
+    // Add the IDs of extensions you want installed when the container is created.
+    "extensions": [
+      "coenraads.bracket-pair-colorizer-2",
+      "christian-kohler.path-intellisense",
+      "oderwat.indent-rainbow",
+      "redhat.vscode-yaml",
+      "geeebe.duplicate",
+      "eamodio.gitlens",
+      "codezombiech.gitignore",
+      "donjayamanne.githistory",
+      "mhutchie.git-graph",
+      "streetsidesoftware.code-spell-checker"
+    ],
+  
+    // Use 'forwardPorts' to make a list of ports inside the container available locally.
+    // "forwardPorts": [],
+  
+    // Use 'postCreateCommand' to run commands after the container is created.
+    // Install the platform requirements.
+    // "postCreateCommand": "pip3 install --user -r ./src/pulumi/requirements.txt",
+  
+    // Comment out connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+    // "remoteUser": "vscode"
+  }

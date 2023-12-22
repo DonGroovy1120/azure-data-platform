@@ -1,0 +1,439 @@
+---
+#----------------------------------------------------------------------------------------------------------------------
+# ROOT
+# Below are the root keys of the expected YAML config file.
+#----------------------------------------------------------------------------------------------------------------------
+general: include('general', required=False)
+management: include('management', required=False)
+logs: include('logs', required=False)
+network: include('network', required=False)
+storage: include('storage', required=False)
+security: include('security', required=False)
+shared_kubernetes_cluster: include('shared_kubernetes_cluster', required=False)
+analytics_services: include('analytics_services', required=False)
+packages: include('packages', required=False)
+automation: include('automation', required=False)
+---
+#----------------------------------------------------------------------------------------------------------------------
+# GENERAL
+#----------------------------------------------------------------------------------------------------------------------
+general:
+  prefix: str(max=3)
+  unique_id: str(max=4)
+  use_legacy_naming: bool()
+  region: str()
+  tags: map()
+  environments: list(str(), required=False) # Shared only
+
+#----------------------------------------------------------------------------------------------------------------------
+# MANAGEMENT
+#----------------------------------------------------------------------------------------------------------------------
+management:
+  user_groups: map(include('user_group'), key=str())
+  resource_groups: map(include('resource_group'), key=str())
+  resource_providers: list(str(), null(), required=False)
+  action_groups: map(include('action_group'), key=str(), required=False)
+
+# management.user_groups
+user_group:
+  display_name: str()
+  object_id: str(required=False)
+
+# management.resource_groups
+resource_group:
+  display_name: str()
+  enable_delete_protection: bool(required=False)
+  iam: include('_iam', required=False)
+
+# management.action_groups
+action_group:
+  display_name: str()
+  short_name: str(max=12)
+  enabled: bool()
+  email_addresses: list(str())
+
+#----------------------------------------------------------------------------------------------------------------------
+# LOGS
+#----------------------------------------------------------------------------------------------------------------------
+logs:
+  retention: int()
+  resource_types: map(bool(), key=str())
+
+#----------------------------------------------------------------------------------------------------------------------
+# NETWORK
+#----------------------------------------------------------------------------------------------------------------------
+network:
+  firewall: include('_network_firewall')
+  nat_gateway:
+    enabled: bool()
+    public_ip: include('_logs_and_metrics', required=False)
+  private_endpoints: include('_network_private_endpoints', required=False)
+  virtual_network: include('_network_virtual_network')
+
+# network.virtual_networks
+_network_private_endpoints:
+  enabled: bool()
+  resource_types: list(str(), required=False)
+
+# network.virtual_networks
+_network_virtual_network:
+  display_name: str()
+  address_space: str()
+
+#----------------------------------------------------------------------------------------------------------------------
+# STORAGE
+#----------------------------------------------------------------------------------------------------------------------
+storage:
+  accounts: map(include('storage_datalake'), key=str())
+  container_registry: map(include('storage_container_registry'), key=str(), required=False)
+
+# storage.datalake
+storage_datalake:
+  display_name: str(max=14)
+  containers: map(include('storage_datalake_container'), key=str())
+  tables: map(include('storage_datalake_table'), key=str(), required=False)
+  network: include('storage_datalake_network', required=False)
+  iam: include('_iam', required=False)
+  logs: include('_logs', required=False)
+  metrics: include('_metrics', required=False)
+  storage_type_logging: include('storage_datalake_storage_type_logging', required=False)
+  lifecycle_management: include('storage_datalake_lifecycle_management', required=False)
+
+# storage.datalake.containers
+storage_datalake_container:
+  display_name: str()
+  iam: include('_iam', required=False)
+
+# storage.datalake.table
+storage_datalake_table:
+  display_name: str()
+  iam: include('_iam', required=False)
+  entities: map(include('storage_datalake_table_entity'), key=str(), required=False)
+
+storage_datalake_table_entity:
+  partition_key: str()
+  row_key: str()
+  entity: map(required=False)
+
+# storage.datalake.network
+storage_datalake_network:
+  firewall: include('_network_firewall', required=False)
+  private_endpoint: include('storage_datalake_network_private_endpoint', required=False)
+
+# storage.datalake.network.private_endpoint
+storage_datalake_network_private_endpoint:
+  blob: include('_logs_and_metrics', required=False)
+  dfs: include('_logs_and_metrics', required=False)
+
+# storage.datalake.storage_type_logging
+storage_datalake_storage_type_logging:
+  blob: include('_logs_and_metrics', required=False)
+  table: include('_logs_and_metrics', required=False)
+
+# storage.container_registry
+storage_container_registry:
+  display_name: str()
+  sku: enum("basic", "standard", "premium")
+  network: include('storage_container_registry_network', required=False)
+  iam: include('_iam', required=False)
+
+storage_container_registry_network:
+  firewall: include('_network_firewall', required=False)
+  private_endpoint: include('storage_container_registry_network_private_endpoint', required=False)
+
+storage_container_registry_network_private_endpoint:
+  enabled_in: list(enum("dev", "test", "prod"), required=False)
+
+storage_datalake_lifecycle_management:
+  archive_after: int(min=0, required=False)
+  cool_after: int(min=0, required=False)
+  delete_after: int(min=0, required=False)
+
+#----------------------------------------------------------------------------------------------------------------------
+# SECURITY
+#----------------------------------------------------------------------------------------------------------------------
+security:
+  config_registry: include('_config_registry', required=False)
+  credentials_store: include('_credentials_store', required=False)
+
+_config_registry:
+  network:
+    firewall: include('_network_firewall', required=False)
+    private_endpoint: include('_logs_and_metrics', required=False)
+  iam: include('_iam', required=False)
+  logs: include('_logs', required=False)
+  metrics: include('_metrics', required=False)
+
+_credentials_store:
+  network:
+    firewall: include('_network_firewall', required=False)
+    private_endpoint: include('_logs_and_metrics', required=False)
+  iam: include('_iam', required=False)
+  logs: include('_logs', required=False)
+  metrics: include('_metrics', required=False)
+
+#----------------------------------------------------------------------------------------------------------------------
+# SHARED KUBERNETES CLUSTER
+#----------------------------------------------------------------------------------------------------------------------
+shared_kubernetes_cluster: # Shared only
+  cluster:
+    iam: include('_iam')
+    linux_agent_pools: list(include('_kubernetes_pool_details_linux'), required=False)
+    windows_agent_pools: list(include('_kubernetes_pool_details_windows'), required=False)
+    oms_agent: bool(required=False)
+  resource_group:
+    display_name: str()
+    iam: include('_iam')
+
+_kubernetes_pool_details_linux:
+  availability_zones: list(enum("1", "2", "3"), required=False)
+  auto_scaling: bool(required=False)
+  count: int(min=1, required=False)
+  labels: map(str(), key=str(), required=False)
+  max_count: int(min=1, required=False)
+  min_count: int(min=0, required=False)
+  name: str(required=False)
+  vm_size: str(required=False)
+
+_kubernetes_pool_details_windows:
+  availability_zones: list(enum("1", "2", "3"), required=False)
+  auto_scaling: bool(required=False)
+  count: int(min=1, required=False)
+  labels: map(str(), key=str(), required=False)
+  max_count: int(min=1, required=False)
+  min_count: int(min=0, required=False)
+  name: str(max=6, required=False)
+  vm_size: str(required=False)
+
+#----------------------------------------------------------------------------------------------------------------------
+# ANALYTICS SERVICES
+#----------------------------------------------------------------------------------------------------------------------
+analytics_services:
+  databricks: include('_databricks')
+  datafactory: include('_datafactory')
+  dbt: include('_dbt', required=False)
+  jupyterlab: include('_jupyterlab', required=False) # Shared only
+  quantum: include('_quantum', required=False)
+
+_databricks:
+  workspaces: map(include('_databricks_workspace'),key=str())
+
+_databricks_workspace:
+  clusters: map(include('_databricks_cluster'), key=str(), required=False)
+  config: include('_databricks_workspace_config', required=False)
+  devops_repositories: list(include('_databricks_devops_repository'), required=False)
+  iam: include('_iam', required=False)
+  instance_pools: map(include('_databricks_instance_pool'), key=str(), required=False)
+  logs: include('_logs', required=False)
+  metrics: include('_metrics', required=False)
+  network: include('_databricks_network_config', required=False)
+  network_security_groups: include('_logs_and_metrics', required=False)
+  storage_mounts: list(include('_databricks_storage_mount'), required=False)
+  users: list(include('_databricks_user'), required=False)
+
+_databricks_network_config:
+  firewall: include('_network_firewall', required=False)
+
+_databricks_workspace_config:
+  enable_container_services: str(required=False)
+
+_databricks_storage_mount:
+  type: enum("mount", "passthrough")
+  account_ref_key: str()
+  mount_name: str()
+  container_name: str(required=False)
+
+_databricks_cluster:
+  autotermination_minutes: int(min=10, required=False)
+  auto_scale_min_workers: int(min=1, required=False) # Ignored for single node
+  auto_scale_max_workers: int(min=2, required=False) # Ignored for single node
+  display_name: str(required=False)
+  docker_image_url: str(required=False)
+  driver_instance_pool_ref_key: str(required=False)
+  instance_pool_ref_key: str(required=False)
+  is_pinned: bool(required=False)
+  libraries: include('_databricks_cluster_libraries', required=False)
+  node_type_id: str(required=False)
+  num_workers: int(required=False) # Ignored for single node
+  spark_conf: map(required=False)
+  spark_env_vars: map(required=False)
+  spark_version: str(required=False)
+  single_user_name: str(required=False)
+  type: enum('high_concurrency', 'single_node', 'standard')
+  use_spot_instances: map(required=False)
+
+_databricks_cluster_libraries:
+  pypi: list(include('_databricks_cluster_library_pypi'), required=False)
+  whl: list(str(), required=False)
+
+_databricks_cluster_library_pypi:
+  package: str()
+  repo: str(required=False)
+
+_databricks_instance_pool:
+  display_name: str()
+  node_type_id: str()
+  min_idle_instances: int(required=False)
+  max_capacity: int(required=False)
+  idle_instance_auto_termination_minutes: int(required=False)
+  enable_elastic_disk: bool(required=False)
+  availability: str(required=False)
+  spot_bid_max_price: int(required=False)
+  disk_type: str(required=False)
+  disk_count: int(required=False)
+  disk_size: int(required=False)
+  custom_tags: map(required=False)
+
+_databricks_devops_repository:
+  name: str()
+
+_databricks_user:
+  active: bool(required=False)
+  email_address: str()
+  roles: list(enum("admin", "cluster_create", "instance_pool_create", "sql_access", "workspace_access"), required=False)
+
+_datafactory:
+  integrated_self_hosted_runtime: include('_integrated_self_hosted_runtime', required=False) # Shared only
+  orchestration_factory: include('_orchestration_factory', required=False)
+  orchestration_factories_contributors: list(include('_group_reference'), required=False)
+  shared_self_hosted_runtime_factory: include('_shared_self_hosted_runtime_factory', required=False) # Shared only
+  user_factories: map(include('_datafactory_factory'), key=str(), required=False)
+  user_factories_contributors: list(include('_group_reference'), required=False)
+
+_datafactory_factory:
+  display_name: str()
+  iam: include('_iam', required=False)
+  integration_runtimes: list(include('_datafactory_integration_runtime'), required=False)
+  logs: include('_logs', required=False)
+  metrics: include('_metrics', required=False)
+  repository: include('_datafactory_repository', required=False)
+  pipeline_failure_action_groups: list(str(), required=False)
+
+_datafactory_repository:
+  devops_integrated: bool(required=False)
+  collaboration_branch: str(required=False)
+  root_folder: str(required=False)
+
+_datafactory_integration_runtime:
+  type: enum("self-hosted","self-hosted-azure-vnet-integrated")
+  name: str()
+  description: str(required=False)
+
+_integrated_self_hosted_runtime:
+  enabled: bool()
+  image: str()
+
+_orchestration_factory:
+  display_name: str(required=False)
+  iam: include('_iam', required=False)
+  ingestion_policy: include('_orchestration_factory_ingestion_policy', required=False)
+
+_orchestration_factory_ingestion_policy:
+  timeout: int(required=False)
+  retry: int(required=False)
+  retry_interval: int(required=False)
+
+_shared_self_hosted_runtime_factory:
+  enabled: bool()
+  name: str(required=False)
+  runtime_names: list(str(), required=False)
+  iam: include('_iam')
+
+_dbt:
+  documentation: include('_dbt_documentation', required=False)
+
+_dbt_documentation:
+  enabled: bool()
+  custom_domains: list(include('_dbt_documentation_custom_domain'), required=False)
+  location: str(required=False)
+  sku_name: str(required=False)
+  sku_tier: str(required=False)
+
+_dbt_documentation_custom_domain:
+  domain: str()
+  validation: enum("cname-delegation", "dns-txt-token", required=False)
+
+_jupyterlab:
+  databricks_connect: include('_jupyterlab_databricks_connect', required=False)
+  enabled: bool(required=False) # Shared only
+  require_assignment: bool(required=False) # Shared only
+  version: str(required=False) # Shared only
+  https: include('_jupyterlab_https', required=False) # Non-shared only
+  single_user_image_version: str(required=False)
+
+_jupyterlab_https:
+  enabled: bool(required=False)
+
+_jupyterlab_databricks_connect:
+  enabled: bool(required=False)
+  users: list(include('_jupyterlab_databricks_connect_user'), required=False)
+
+_jupyterlab_databricks_connect_user:
+  email_address: str()
+  cluster: include('_databricks_cluster', required=False)
+
+_quantum:
+  enabled: bool()
+  providers: list(include('_quantum_provider'))
+
+_quantum_provider:
+  id: str()
+  sku: str()
+
+#----------------------------------------------------------------------------------------------------------------------
+# PACKAGES
+#----------------------------------------------------------------------------------------------------------------------
+packages: list(include('_package'), required=False)
+
+_package:
+  name: str()
+  git: str(required=False)
+  pypi: str(required=False)
+  local: str(required=False)
+  config: map(required=False)
+
+#----------------------------------------------------------------------------------------------------------------------
+# AUTOMATION
+#----------------------------------------------------------------------------------------------------------------------
+# TODO: Populate the automation schema
+automation: any()
+
+#----------------------------------------------------------------------------------------------------------------------
+# COMMON
+# These are common definitions that are reused across the schema.
+#----------------------------------------------------------------------------------------------------------------------
+_group_reference:
+  object_id: str(required=False)
+  user_group_ref_key: str(required=False)
+
+_iam:
+  role_assignments: list(include('_iam_role_assignment'))
+
+_iam_role_assignment:
+  role_definition_name: str()
+  object_id: str(required=False)
+  user_group_ref_key: str(required=False)
+  azure_devops_project_group_name: str(required=False)
+
+_logs:
+  enabled: bool(required=False)
+  categories: list(str(), required=False)
+
+_metrics:
+  enabled: bool(required=False)
+  categories: list(str(), required=False)
+
+_logs_and_metrics:
+  logs: include('_logs', required=False)
+  metrics: include('_metrics', required=False)
+
+_network_firewall:
+  enabled: bool()
+  ip_access_list: list(ip(), required=False)
+  vnet_access_list: list(str(), required=False) # applies to Storage Accounts, Key Vaults
+  resource_access_list: list(include('_network_firewall_resource_access'), required=False) # applies to Storage Accounts
+  trust_azure_services: bool(required=False) # applies to Storage Accounts, Key Vaults
+
+_network_firewall_resource_access:
+  resource_id: str()
+  tenant_id: str()
